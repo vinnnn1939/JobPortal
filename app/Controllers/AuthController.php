@@ -14,9 +14,11 @@ class AuthController extends Controller {
                 $error = 'Please enter both email and password.';
             } else {
                 $user = (new User())->findByEmail($email);
-                if (!$user)                                              $error = 'No account found with that email.';
-                elseif (!$user['is_active'])                             $error = 'Your account has been deactivated. Contact support.';
-                elseif (!password_verify($password, $user['password_hash'])) $error = 'Incorrect password. Please try again.';
+                if (!$user)                                                   $error = 'No account found with that email.';
+                elseif ($user['role'] === 'employer' && ($user['approval_status'] ?? '') === 'pending')  $error = 'Your employer account is awaiting admin approval. You will be notified once approved.';
+                elseif ($user['role'] === 'employer' && ($user['approval_status'] ?? '') === 'rejected') $error = 'Your employer account application was rejected. Please contact support.';
+                elseif (!$user['is_active'])                                  $error = 'Your account has been deactivated. Contact support.';
+                elseif (!password_verify($password, $user['password_hash']))  $error = 'Incorrect password. Please try again.';
                 else {
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['email']   = $user['email'];
@@ -27,6 +29,7 @@ class AuthController extends Controller {
         }
 
         if (isset($_GET['registered'])) $success = 'Account created! You can now log in.';
+        if (isset($_GET['pending']))    $success = 'Registration submitted! Your employer account is pending admin approval. We will notify you once reviewed.';
         if (isset($_GET['logout']))     $success = 'You have been logged out successfully.';
         $this->view('auth/login', compact('error', 'success'));
     }
@@ -82,7 +85,15 @@ class AuthController extends Controller {
                     }
 
                     $id = $model->create($email, $password, $role, $full_name, $location, $company_name, $cv_file, $company_logo);
-                    $id ? $this->redirect('login?registered=1') : ($error = 'Registration failed. Please try again.');
+                    if ($id) {
+                        if ($role === 'employer') {
+                            $this->redirect('login?pending=1');
+                        } else {
+                            $this->redirect('login?registered=1');
+                        }
+                    } else {
+                        $error = 'Registration failed. Please try again.';
+                    }
                 }
             }
         }

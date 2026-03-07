@@ -131,10 +131,25 @@ $unreadCount = (new ContactMessage())->countUnread();
 
           <div class="sh">Users</div>
           <li class="<?php echo ($adminPage??'')==='users'?'active':''; ?>">
-               <a href="<?php echo SITE_URL; ?>/admin/users"><i class="fa fa-users"></i> All Users</a>
+               <a href="<?php echo SITE_URL; ?>/admin/users" style="display:flex;align-items:center;justify-content:space-between">
+                    <span><i class="fa fa-users"></i> All Users</span>
+                    <?php
+                    $pc = $GLOBALS['conn']->query("SELECT COUNT(*) c FROM users WHERE role='employer' AND approval_status='pending'")->fetch_assoc()['c'];
+                    if ($pc > 0): ?>
+                    <span style="background:#f57c00;color:#fff;border-radius:50px;font-size:10px;padding:2px 7px;font-weight:700"><?php echo $pc; ?></span>
+                    <?php endif; ?>
+               </a>
           </li>
-          <li class="<?php echo ($adminPage??'')==='employers'?'active':''; ?>">
-               <a href="<?php echo SITE_URL; ?>/admin/employers"><i class="fa fa-building"></i> Employers</a>
+          <li class="<?php echo ($adminPage??'')==='employer-approvals'?'active':''; ?>">
+               <a href="<?php echo SITE_URL; ?>/admin/employer-approvals" style="display:flex;align-items:center;justify-content:space-between">
+                    <span><i class="fa fa-building"></i> Employer Approvals</span>
+                    <?php
+                    $pendingCount = $GLOBALS['conn']->query("SELECT COUNT(*) c FROM users WHERE role='employer' AND approval_status='pending'")->fetch_assoc()['c'];
+                    if ($pendingCount > 0):
+                    ?>
+                    <span style="background:#e53935;color:#fff;border-radius:50px;font-size:10px;padding:2px 7px;font-weight:700"><?php echo $pendingCount; ?></span>
+                    <?php endif; ?>
+               </a>
           </li>
 
           <div class="sh">Content</div>

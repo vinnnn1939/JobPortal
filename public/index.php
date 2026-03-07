@@ -53,13 +53,18 @@ $router->any('/reset-password',   'AuthController', 'resetPassword');
 $router->get('/dashboard',        'AuthController', 'dashboard');
 
 // Admin
-$router->get('/admin',                        'Admin/DashboardController',    'index');
-$router->any('/admin/profile',                'Admin/ProfileController',      'index');
+$router->get('/admin',                                    'Admin/DashboardController',          'index');
+$router->any('/admin/profile',                            'Admin/ProfileController',            'index');
+$router->get('/admin/employer-approvals',                 'Admin/EmployerApprovalController',   'index');
+$router->get('/admin/employer-approvals/approve/:id',     'Admin/EmployerApprovalController',   'approve');
+$router->get('/admin/employer-approvals/reject/:id',      'Admin/EmployerApprovalController',   'reject');
 $router->get('/admin/jobs',                   'Admin/JobAdminController',     'index');
 $router->any('/admin/jobs/create',            'Admin/JobAdminController',     'create');
 $router->get('/admin/users',                  'Admin/UserAdminController',    'index');
 $router->any('/admin/users/edit/:id',         'Admin/UserAdminController',    'edit');
 $router->get('/admin/users/toggle/:id',       'Admin/UserAdminController',    'toggle');
+$router->get('/admin/users/approve/:id',      'Admin/UserAdminController',    'approve');
+$router->get('/admin/users/reject/:id',       'Admin/UserAdminController',    'reject');
 $router->get('/admin/users/delete/:id',       'Admin/UserAdminController',    'delete');
 $router->get('/admin/applications',           'Admin/ApplicationAdminController', 'index');
 $router->post('/admin/applications/update',   'Admin/ApplicationAdminController', 'update');

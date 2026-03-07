@@ -42,16 +42,22 @@ class User extends Model {
     }
 
     public function create(string $email, string $password, string $role, string $full_name = '', string $location = '', string $company_name = '', string $cv_file = '', string $company_logo = ''): int|false {
-        $hash = password_hash($password, PASSWORD_BCRYPT);
-        $s = $this->conn->prepare("INSERT INTO users (email, password_hash, role, full_name, is_active, email_verified, created_at) VALUES (?, ?, ?, ?, 1, 0, NOW())");
-        $s->bind_param('ssss', $email, $hash, $role, $full_name);
+        $hash      = password_hash($password, PASSWORD_BCRYPT);
+        $is_active = $role === 'employer' ? 0 : 1;
+        $approval  = $role === 'employer' ? 'pending' : 'approved';
+        $s = $this->conn->prepare("INSERT INTO users (email, password_hash, role, full_name, is_active, approval_status, email_verified, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, NOW())");
+        $s->bind_param('ssssis', $email, $hash, $role, $full_name, $is_active, $approval);
         if (!$s->execute()) return false;
         $user_id = $this->conn->insert_id;
 
         // Save to employer_profiles
         if ($role === 'employer') {
-            $ep = $this->conn->prepare("INSERT INTO employer_profiles (user_id, company_name, logo, location_city, created_at) VALUES (?, ?, ?, ?, NOW())");
-            if ($ep) { $ep->bind_param('isss', $user_id, $company_name, $company_logo, $location); $ep->execute(); }
+            // Generate unique slug from company name
+            $slug = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $company_name), '-'));
+            $slug = $slug ?: 'company';
+            $slug = $slug . '-' . $user_id; // append user_id to guarantee uniqueness
+            $ep = $this->conn->prepare("INSERT INTO employer_profiles (user_id, company_name, company_slug, logo, location_city, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+            if ($ep) { $ep->bind_param('issss', $user_id, $company_name, $slug, $company_logo, $location); $ep->execute(); }
         }
 
         // Save to job_seeker_profiles
@@ -111,10 +117,25 @@ class User extends Model {
         return $ok;
     }
 
-    public function getAll(string $search = '', string $role = ''): array {
+    public function getPendingEmployers(): array {
+        return $this->conn->query("SELECT u.*, ep.company_name, ep.logo, ep.location_city, ep.website, ep.industry FROM users u LEFT JOIN employer_profiles ep ON u.id=ep.user_id WHERE u.role='employer' AND u.approval_status='pending' ORDER BY u.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function approveEmployer(int $id): void {
+        $s = $this->conn->prepare("UPDATE users SET is_active=1, approval_status='approved' WHERE id=? AND role='employer'");
+        $s->bind_param('i', $id); $s->execute();
+    }
+
+    public function rejectEmployer(int $id): void {
+        $s = $this->conn->prepare("UPDATE users SET is_active=0, approval_status='rejected' WHERE id=? AND role='employer'");
+        $s->bind_param('i', $id); $s->execute();
+    }
+
+    public function getAll(string $search = '', string $role = '', string $approval = ''): array {
         $where = ['1=1']; $params = []; $types = '';
-        if ($search) { $where[] = "email LIKE ?"; $p = "%$search%"; $params[] = $p; $types .= 's'; }
-        if ($role)   { $where[] = "role = ?";     $params[] = $role;              $types .= 's'; }
+        if ($search)   { $where[] = "email LIKE ?";           $p = "%$search%"; $params[] = $p; $types .= 's'; }
+        if ($role)     { $where[] = "role = ?";               $params[] = $role;                $types .= 's'; }
+        if ($approval) { $where[] = "approval_status = ?";    $params[] = $approval;            $types .= 's'; }
         $s = $this->conn->prepare("SELECT * FROM users WHERE " . implode(' AND ', $where) . " ORDER BY created_at DESC");
         if ($types) $s->bind_param($types, ...$params);
         $s->execute();
