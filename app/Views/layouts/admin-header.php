@@ -122,6 +122,9 @@ $unreadCount = (new ContactMessage())->countUnread();
           <li class="<?php echo ($adminPage??'')==='jobs'?'active':''; ?>">
                <a href="<?php echo SITE_URL; ?>/admin/jobs"><i class="fa fa-briefcase"></i> All Jobs</a>
           </li>
+          <li class="<?php echo ($adminPage??'')==='import-jobs'?'active':''; ?>">
+               <a href="<?php echo SITE_URL; ?>/admin/import-jobs"><i class="fa fa-cloud-download"></i> Import Jobs</a>
+          </li>
           <li class="<?php echo ($adminPage??'')==='applications'?'active':''; ?>">
                <a href="<?php echo SITE_URL; ?>/admin/applications"><i class="fa fa-file-text"></i> Applications</a>
           </li>

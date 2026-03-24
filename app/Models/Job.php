@@ -137,4 +137,20 @@ public function create(array $d): bool {
     }
     return $slug;
 }
+
+public function importJob(array $d): int|false {
+    $slug = $this->generateSlug($d['title']);
+
+    $s = $this->conn->prepare("INSERT INTO jobs (employer_id, title, slug, description, company_name_override, location_city, location_country, job_type, work_mode, salary_min, salary_max, salary_visible, source_url, status, is_featured, created_at) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())");
+    $s->bind_param('ssssssssiisss',
+        $d['title'], $slug, $d['description'], $d['company_name'],
+        $d['location_city'], $d['location_country'],
+        $d['job_type'], $d['work_mode'],
+        $d['salary_min'], $d['salary_max'], $d['salary_visible'],
+        $d['source_url'], $d['status']
+    );
+    if (!$s->execute()) return false;
+    return $this->conn->insert_id;
+}
+
 }

@@ -1,58 +1,120 @@
-<?php require BASE_PATH . '/app/Views/layouts/admin-header.php'; ?>
+<?php
+class Job extends Model {
 
-<div class="pg-bar">
-     <h2><i class="fa fa-briefcase"></i> Manage Jobs</h2>
-     <a href="<?php echo SITE_URL; ?>/admin/jobs/create" class="btn btn-success btn-sm"><i class="fa fa-plus"></i> Add Job</a>
-</div>
+    public function getFeatured(int $limit = 3): array {
+        $select = "SELECT j.*, COALESCE(ep.company_name, j.company_name_override) AS company_name, ep.logo FROM jobs j LEFT JOIN employer_profiles ep ON j.employer_id=ep.user_id";
+        $s = $this->conn->prepare("$select WHERE j.status='active' AND j.is_featured=1 ORDER BY j.created_at DESC LIMIT ?");
+        $s->bind_param('i', $limit); $s->execute();
+        $rows = $s->get_result()->fetch_all(MYSQLI_ASSOC);
+        if (empty($rows)) {
+            $s = $this->conn->prepare("$select WHERE j.status='active' ORDER BY j.created_at DESC LIMIT ?");
+            $s->bind_param('i', $limit); $s->execute();
+            $rows = $s->get_result()->fetch_all(MYSQLI_ASSOC);
+        }
+        return $rows;
+    }
 
-<div class="adm-card" style="padding:15px 18px;margin-bottom:20px;border-top:none;border-left:4px solid #29ca8e;border-radius:0 4px 4px 0">
-     <form method="get" action="<?php echo SITE_URL; ?>/admin/jobs" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <input type="text" name="search" class="form-control" style="width:220px" placeholder="Search title..." value="<?php echo htmlspecialchars($search); ?>">
-          <select name="status" class="form-control" style="width:150px">
-               <option value="">All Statuses</option>
-               <?php foreach (['active','draft','paused','closed','expired'] as $s): ?>
-               <option value="<?php echo $s; ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo ucfirst($s); ?></option>
-               <?php endforeach; ?>
-          </select>
-          <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i> Filter</button>
-          <a href="<?php echo SITE_URL; ?>/admin/jobs" class="btn btn-default">Clear</a>
-          <span class="text-muted" style="margin-left:auto;font-size:13px"><?php echo count($jobs); ?> job<?php echo count($jobs) !== 1 ? 's' : ''; ?> found</span>
-     </form>
-</div>
+    public function search(string $keyword, string $location, int $category, string $job_type, string $work_mode, int $perPage, int $offset): array {
+        $where = ["j.status='active'"]; $params = []; $types = '';
+        if ($keyword)   { $kw = "%$keyword%";   $where[] = "(j.title LIKE ? OR j.description LIKE ?)"; $params = array_merge($params,[$kw,$kw]); $types .= 'ss'; }
+        if ($location)  { $loc = "%$location%"; $where[] = "(j.location_city LIKE ? OR j.location_country LIKE ?)"; $params = array_merge($params,[$loc,$loc]); $types .= 'ss'; }
+        if ($category)  { $where[] = "j.category_id=?"; $params[] = $category; $types .= 'i'; }
+        if ($job_type)  { $where[] = "j.job_type=?";    $params[] = $job_type;  $types .= 's'; }
+        if ($work_mode) { $where[] = "j.work_mode=?";   $params[] = $work_mode; $types .= 's'; }
+        $w = 'WHERE ' . implode(' AND ', $where);
 
-<div class="adm-card">
-     <div class="card-head"><h4><i class="fa fa-briefcase"></i> All Jobs</h4></div>
-     <table class="table table-hover">
-          <thead><tr><th>#</th><th>Title</th><th>Company</th><th>Type</th><th>Status</th><th>Featured</th><th>Views</th><th>Posted</th><th>Actions</th></tr></thead>
-          <tbody>
-          <?php if (empty($jobs)): ?>
-          <tr><td colspan="9" class="text-center text-muted" style="padding:25px">No jobs found.</td></tr>
-          <?php else:
-          $sc = ['active'=>'success','draft'=>'default','closed'=>'danger','paused'=>'warning','expired'=>'warning'];
-          foreach ($jobs as $j): ?>
-          <tr>
-               <td style="color:#999"><?php echo $j['id']; ?></td>
-               <td><a href="<?php echo SITE_URL; ?>/jobs/<?php echo $j['id']; ?>" target="_blank"><?php echo clean($j['title']); ?></a></td>
-               <td><small><?php echo clean($j['company_name'] ?? '–'); ?></small></td>
-               <td><small><?php echo ucfirst(str_replace('_', ' ', $j['job_type'])); ?></small></td>
-               <td><span class="label label-<?php echo $sc[$j['status']] ?? 'default'; ?>"><?php echo ucfirst($j['status']); ?></span></td>
-               <td>
-                    <a href="<?php echo SITE_URL; ?>/admin/jobs?feature=<?php echo $j['id']; ?>" title="Toggle featured">
-                         <i class="fa fa-star" style="font-size:16px;color:<?php echo $j['is_featured'] ? '#f0c040' : '#ddd'; ?>"></i>
-                    </a>
-               </td>
-               <td><small><?php echo $j['views']; ?></small></td>
-               <td><small><?php echo date('d M Y', strtotime($j['created_at'])); ?></small></td>
-               <td>
-                    <a href="<?php echo SITE_URL; ?>/admin/jobs?toggle=<?php echo $j['id']; ?>" class="btn btn-xs <?php echo $j['status'] === 'active' ? 'btn-warning' : 'btn-success'; ?>"
-                       onclick="return confirm('Toggle status?')"><?php echo $j['status'] === 'active' ? 'Pause' : 'Activate'; ?></a>
-                    <a href="<?php echo SITE_URL; ?>/admin/jobs?delete=<?php echo $j['id']; ?>" class="btn btn-xs btn-danger"
-                       onclick="return confirm('Delete this job permanently?')">Delete</a>
-               </td>
-          </tr>
-          <?php endforeach; endif; ?>
-          </tbody>
-     </table>
-</div>
+        $cs = $this->conn->prepare("SELECT COUNT(*) total FROM jobs j $w");
+        if ($types) $cs->bind_param($types, ...$params); $cs->execute();
+        $total = (int)$cs->get_result()->fetch_assoc()['total'];
 
-<?php require BASE_PATH . '/app/Views/layouts/admin-footer.php'; ?>
+        $s = $this->conn->prepare("SELECT j.*, COALESCE(ep.company_name, j.company_name_override) AS company_name, ep.logo FROM jobs j LEFT JOIN employer_profiles ep ON j.employer_id=ep.user_id $w ORDER BY j.is_featured DESC, j.created_at DESC LIMIT ? OFFSET ?");
+        $s->bind_param($types . 'ii', ...array_merge($params, [$perPage, $offset]));
+        $s->execute();
+        return ['jobs' => $s->get_result()->fetch_all(MYSQLI_ASSOC), 'total' => $total];
+    }
+
+    public function find(int $id): ?array {
+        $s = $this->conn->prepare("SELECT j.*, COALESCE(ep.company_name, j.company_name_override) AS company_name, ep.description AS company_desc, ep.logo, ep.website, ep.location_city AS company_city, ep.company_size, ep.industry, c.name AS category_name FROM jobs j LEFT JOIN employer_profiles ep ON j.employer_id=ep.user_id LEFT JOIN categories c ON j.category_id=c.id WHERE j.id=? AND j.status='active'");
+        $s->bind_param('i', $id); $s->execute();
+        return $s->get_result()->fetch_assoc() ?: null;
+    }
+
+    public function incrementViews(int $id): void {
+        $this->conn->query("UPDATE jobs SET views=views+1 WHERE id=$id");
+    }
+
+    public function getSkills(int $jobId): array {
+        return $this->conn->query("SELECT s.name, js.is_required FROM job_skills js JOIN skills s ON js.skill_id=s.id WHERE js.job_id=$jobId")->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function getCategories(): array {
+        return $this->conn->query("SELECT * FROM categories ORDER BY name")->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function getAll(string $search = '', string $status = ''): array {
+        $where = ['1=1']; $params = []; $types = '';
+        if ($search) { $kw = "%$search%"; $where[] = "j.title LIKE ?"; $params[] = $kw; $types .= 's'; }
+        if ($status) { $where[] = "j.status=?"; $params[] = $status; $types .= 's'; }
+        $s = $this->conn->prepare("SELECT j.*, COALESCE(ep.company_name, j.company_name_override) AS company_name FROM jobs j LEFT JOIN employer_profiles ep ON j.employer_id=ep.user_id WHERE " . implode(' AND ', $where) . " ORDER BY j.created_at DESC");
+        if ($types) $s->bind_param($types, ...$params); $s->execute();
+        return $s->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function toggleStatus(int $id): void {
+        $this->conn->query("UPDATE jobs SET status=IF(status='active','paused','active') WHERE id=$id");
+    }
+
+    public function toggleFeatured(int $id): void {
+        $this->conn->query("UPDATE jobs SET is_featured=NOT is_featured WHERE id=$id");
+    }
+
+    public function delete(int $id): void {
+        $this->conn->query("DELETE FROM jobs WHERE id=$id");
+    }
+
+    public function create(array $d): bool {
+        $s = $this->conn->prepare("INSERT INTO jobs (employer_id, category_id, title, description, requirements, benefits, job_type, work_mode, experience_level, salary_min, salary_max, salary_currency, location_city, location_country, application_deadline, status, is_featured, job_image, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        $s->bind_param('iisssssssiisssssis',
+            $d['employer_id'], $d['category_id'], $d['title'], $d['description'],
+            $d['requirements'], $d['benefits'], $d['job_type'], $d['work_mode'],
+            $d['experience_level'], $d['salary_min'], $d['salary_max'], $d['salary_currency'],
+            $d['location_city'], $d['location_country'], $d['application_deadline'],
+            $d['status'], $d['is_featured'], $d['job_image']
+        );
+        return $s->execute();
+    }
+
+    public function countByStatus(): array {
+        return $this->conn->query("SELECT status, COUNT(*) as total FROM jobs GROUP BY status")->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function countActive(): int {
+        return (int)$this->conn->query("SELECT COUNT(*) c FROM jobs WHERE status='active'")->fetch_assoc()['c'];
+    }
+
+    public function countAll(): int {
+        return (int)$this->conn->query("SELECT COUNT(*) c FROM jobs")->fetch_assoc()['c'];
+    }
+
+    public function recent(int $limit = 8): array {
+        return $this->conn->query("SELECT j.id,j.title,j.status,j.job_type,j.created_at,ep.company_name FROM jobs j LEFT JOIN employer_profiles ep ON j.employer_id=ep.user_id ORDER BY j.created_at DESC LIMIT $limit")->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function importJob(array $d): int|false {
+        // Generate unique slug from title
+        $base = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $d['title']), '-'));
+        $base = $base ?: 'job';
+        $slug = $base . '-' . time() . '-' . rand(100, 999);
+
+        $s = $this->conn->prepare("INSERT INTO jobs (title, description, company_name_override, location_city, location_country, job_type, work_mode, salary_min, salary_max, salary_visible, source_url, slug, status, is_featured, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())");
+        $s->bind_param('sssssssiissss',
+            $d['title'], $d['description'], $d['company_name'],
+            $d['location_city'], $d['location_country'],
+            $d['job_type'], $d['work_mode'],
+            $d['salary_min'], $d['salary_max'], $d['salary_visible'],
+            $d['source_url'], $slug, $d['status']
+        );
+        if (!$s->execute()) return false;
+        return $this->conn->insert_id;
+    }
+}
