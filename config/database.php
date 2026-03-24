@@ -12,7 +12,7 @@ define('DB_CHARSET', 'utf8mb4');
 //  SITE CONFIGURATION
 // ============================================================
 define('SITE_NAME',  'Jobs Agency');
-define('SITE_URL', 'http://localhost:8080/mvc/JobPortal/public');
+define('SITE_URL', 'http://localhost/JobPortal/public');
 define('SITE_EMAIL', 'contact@company.com');
 
 // ============================================================
@@ -32,7 +32,7 @@ if ($conn->connect_error) {
     die('<div style="font-family:sans-serif;padding:30px;color:red;border:2px solid red;margin:20px;">
          <h3>&#10060; Database Connection Failed</h3>
          <p><strong>Error:</strong> ' . $conn->connect_error . '</p>
-         <p>&#128073; Check phpMyAdmin at <a href="http://localhost:8080/phpmyadmin">http://localhost:8080/phpmyadmin</a>
+         <p>&#128073; Check phpMyAdmin at <a href="http://localhost/phpmyadmin">http://localhost/phpmyadminn</a>
          and confirm database <strong>job_portal_testing2</strong> exists.</p>
          </div>');
 }
