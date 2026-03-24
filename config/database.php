@@ -12,12 +12,13 @@ define('DB_CHARSET', 'utf8mb4');
 //  SITE CONFIGURATION
 // ============================================================
 define('SITE_NAME',  'Jobs Agency');
-define('SITE_URL', 'http://localhost/JobPortal/public');
+define('SITE_URL', 'http://localhost:8080/mvc/JobPortal/public');
 define('SITE_EMAIL', 'contact@company.com');
 
 // ============================================================
-//  PATH CONSTANTS
+//  API KEYS
 // ============================================================
+define('JSEARCH_API_KEY', 'c3750ffd41msh456db7fb5e4641cp193aebjsn28311744d84f');
 define('ROOT_PATH',  dirname(__DIR__));          // project root
 define('APP_PATH',   ROOT_PATH . '/app');
 define('VIEW_PATH',  APP_PATH  . '/Views');

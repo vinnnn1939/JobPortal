@@ -60,6 +60,9 @@ $router->get('/admin/employer-approvals/approve/:id',     'Admin/EmployerApprova
 $router->get('/admin/employer-approvals/reject/:id',      'Admin/EmployerApprovalController',   'reject');
 $router->get('/admin/jobs',                   'Admin/JobAdminController',     'index');
 $router->any('/admin/jobs/create',            'Admin/JobAdminController',     'create');
+$router->get('/admin/import-jobs',            'Admin/JobImportController',    'index');
+$router->post('/admin/import-jobs/search',    'Admin/JobImportController',    'search');
+$router->post('/admin/import-jobs/import',    'Admin/JobImportController',    'import');
 $router->get('/admin/users',                  'Admin/UserAdminController',    'index');
 $router->any('/admin/users/edit/:id',         'Admin/UserAdminController',    'edit');
 $router->get('/admin/users/toggle/:id',       'Admin/UserAdminController',    'toggle');
